@@ -1,0 +1,12 @@
+{
+  "$schema": "https://turbo.build/schema.json",
+  "globalEnv": ["NODE_ENV"],
+  "tasks": {
+    "build": { "dependsOn": ["^build", "@avn/database#db:generate"], "outputs": ["dist/**", ".next/**", "!.next/cache/**"], "env": ["NEXT_PUBLIC_*", "API_INTERNAL_URL"] },
+    "@avn/database#db:generate": { "cache": false },
+    "typecheck": { "dependsOn": ["@avn/database#db:generate"] },
+    "lint": {},
+    "test": { "dependsOn": ["@avn/database#db:generate"], "cache": false, "env": ["DATABASE_URL", "TEST_DATABASE_URL", "REDIS_URL"] },
+    "dev": { "cache": false, "persistent": true }
+  }
+}
