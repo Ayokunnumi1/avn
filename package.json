@@ -15,8 +15,8 @@
     "db:generate": "pnpm --filter @avn/database db:generate",
     "db:migrate": "pnpm --filter @avn/database db:migrate",
     "db:deploy": "pnpm --filter @avn/database db:deploy",
-    "db:seed": "pnpm --filter @avn/database db:seed",
-    "db:reset": "pnpm --filter @avn/database db:reset",
+    "db:seed": "pnpm --filter @avn/api seed",
+    "db:reset": "pnpm --filter @avn/database db:reset && pnpm --filter @avn/api seed",
     "format": "prettier --write ."
   },
   "devDependencies": {

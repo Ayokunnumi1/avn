@@ -1,0 +1,1418 @@
+// AVN — Digital Address Verification Network
+// PostgreSQL 16 + PostGIS. UUID primary keys, UTC timestamps, Decimal money.
+// Spatial columns are STORED generated geography columns maintained by PostgreSQL
+// (see migrations), so application code never writes geometry directly.
+
+generator client {
+  provider        = "prisma-client-js"
+  previewFeatures = ["postgresqlExtensions"]
+}
+
+datasource db {
+  provider   = "postgresql"
+  url        = env("DATABASE_URL")
+  extensions = [postgis]
+}
+
+// ─── Enums (mirrored in @avn/contracts) ──────────────────────────────────────
+enum AccountType {
+  APPLICANT
+  VERIFIER
+  INSTITUTION
+  ADMIN
+}
+
+enum AccountStatus {
+  PENDING
+  ACTIVE
+  SUSPENDED
+  DEACTIVATED
+}
+
+enum AdminRole {
+  SUPER_ADMIN
+  OPERATIONS
+  REVIEWER
+  FINANCE
+  SUPPORT
+}
+
+enum OrgRole {
+  OWNER
+  ADMINISTRATOR
+  SUPERVISOR
+  VERIFICATION_OFFICER
+  FINANCE_OFFICER
+  AUDITOR
+}
+
+enum OrgStatus {
+  PENDING_REVIEW
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum BusinessType {
+  BANK
+  MICROFINANCE
+  FINTECH
+  INSURANCE
+  TELECOM
+  EMPLOYER
+  PROPERTY
+  GOVERNMENT
+  OTHER
+}
+
+enum VerifierStatus {
+  INCOMPLETE
+  IDENTITY_PENDING
+  MANUAL_REVIEW
+  APPROVED
+  REJECTED
+  SUSPENDED
+}
+
+enum IdentityCheckStatus {
+  PENDING
+  PASSED
+  FAILED
+  MANUAL_REVIEW
+  ERROR
+}
+
+enum RequestStatus {
+  CREATED
+  AWAITING_APPLICANT
+  READY_FOR_ASSIGNMENT
+  DISPATCHING
+  ASSIGNED
+  ACCEPTED
+  EN_ROUTE
+  ARRIVED
+  VISIT_IN_PROGRESS
+  EVIDENCE_SUBMITTED
+  PROCESSING
+  MANUAL_REVIEW
+  COMPLETED
+  PARTIALLY_VERIFIED
+  NOT_VERIFIED
+  INCONCLUSIVE
+  CANCELLED
+  EXPIRED
+}
+
+enum RequestSource {
+  INSTITUTION
+  INDIVIDUAL
+  API
+  BULK
+}
+
+enum VerificationLevel {
+  BASIC
+  STANDARD
+  ENHANCED
+}
+
+enum VerificationPurpose {
+  BANK_ACCOUNT
+  LOAN
+  EMPLOYMENT
+  TENANCY
+  INSURANCE
+  GOVERNMENT
+  PERSONAL
+  OTHER
+}
+
+enum Priority {
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum AssignmentStatus {
+  ACCEPTED
+  EN_ROUTE
+  ARRIVED
+  IN_PROGRESS
+  SUBMITTED
+  RELEASED
+  CANCELLED
+  EXPIRED
+}
+
+enum InvitationStatus {
+  SENT
+  ACCEPTED
+  DECLINED
+  EXPIRED
+  WITHDRAWN
+}
+
+enum ApplicantInvitationStatus {
+  PENDING
+  OPENED
+  COMPLETED
+  EXPIRED
+  REVOKED
+}
+
+enum EvidenceCategory {
+  BUILDING_EXTERIOR
+  BUILDING_ENTRANCE
+  STREET_ENVIRONMENT
+  ADDITIONAL
+  VIDEO_WALKTHROUGH
+}
+
+enum DocumentType {
+  UTILITY_BILL
+  TENANCY_AGREEMENT
+  BANK_STATEMENT
+  GOVERNMENT_LETTER
+  ID_DOCUMENT
+  OTHER
+}
+
+enum FindingKey {
+  BUILDING_EXISTENCE
+  ADDRESS_MATCH
+  OCCUPANCY
+  APPLICANT_PRESENCE
+  RESIDENCY_CONFIRMATION
+  CONTACTABILITY
+  EVIDENCE_INTEGRITY
+}
+
+enum FindingValue {
+  CONFIRMED
+  NOT_CONFIRMED
+  CONTRADICTED
+  UNABLE_TO_DETERMINE
+  NOT_REQUIRED
+}
+
+enum FinalOutcome {
+  VERIFIED
+  PARTIALLY_VERIFIED
+  NOT_VERIFIED
+  INCONCLUSIVE
+  MANUAL_REVIEW
+}
+
+enum ReviewStatus {
+  OPEN
+  IN_PROGRESS
+  RESOLVED
+}
+
+enum DisputeStatus {
+  OPEN
+  UNDER_REVIEW
+  UPHELD
+  REJECTED
+}
+
+enum FraudSeverity {
+  LOW
+  MEDIUM
+  HIGH
+}
+
+enum FraudSignalStatus {
+  OPEN
+  CONFIRMED_FRAUD
+  FALSE_POSITIVE
+}
+
+enum PaymentStatus {
+  INITIATED
+  SUCCEEDED
+  FAILED
+  ABANDONED
+  REFUNDED
+}
+
+enum PaymentPurpose {
+  INDIVIDUAL_VERIFICATION
+  WALLET_TOPUP
+}
+
+enum WalletOwnerType {
+  VERIFIER
+  ORGANISATION
+  PLATFORM
+}
+
+enum LedgerBucket {
+  PENDING
+  AVAILABLE
+  HELD
+}
+
+enum LedgerDirection {
+  CREDIT
+  DEBIT
+}
+
+enum LedgerCategory {
+  VERIFICATION_EARNING
+  EARNING_RELEASE
+  PAYOUT_HOLD
+  PAYOUT_COMPLETE
+  PAYOUT_REVERSAL
+  TOPUP
+  VERIFICATION_CHARGE
+  VERIFICATION_REFUND
+  PLATFORM_FEE
+  ADJUSTMENT
+}
+
+enum PayoutStatus {
+  REQUESTED
+  APPROVED
+  PROCESSING
+  COMPLETED
+  FAILED
+  REJECTED
+}
+
+enum NotificationChannel {
+  IN_APP
+  EMAIL
+  SMS
+  PUSH
+}
+
+enum DeliveryStatus {
+  QUEUED
+  SENT
+  FAILED
+  SKIPPED
+}
+
+enum AiFeature {
+  ADDRESS_PARSE
+  EVIDENCE_QUALITY
+  OCR
+  REPORT_SUMMARY
+  INSTITUTION_ASSISTANT
+}
+
+enum AiAnalysisStatus {
+  SUCCEEDED
+  FAILED
+  SKIPPED
+}
+
+enum BulkUploadStatus {
+  VALIDATED
+  PROCESSING
+  COMPLETED
+  FAILED
+  DISCARDED
+}
+
+enum FileScanStatus {
+  NOT_SCANNED
+  CLEAN
+  INFECTED
+}
+
+enum AreaType {
+  STATE
+  LGA
+  CITY
+}
+
+// ─── Identity & access ───────────────────────────────────────────────────────
+model User {
+  id                String        @id @default(uuid()) @db.Uuid
+  accountType       AccountType
+  status            AccountStatus @default(ACTIVE)
+  isGuest           Boolean       @default(false)
+  fullName          String
+  email             String?
+  phone             String?
+  emailVerifiedAt   DateTime?
+  phoneVerifiedAt   DateTime?
+  passwordHash      String?
+  mfaSecretEnc      String?
+  mfaEnabled        Boolean       @default(false)
+  adminRole         AdminRole?
+  countryCode       String        @default("NG")
+  timezone          String        @default("Africa/Lagos")
+  notificationPrefs Json          @default("{\"email\":true,\"sms\":true,\"push\":true}")
+  failedLoginCount  Int           @default(0)
+  lockedUntil       DateTime?
+  lastLoginAt       DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  deletedAt         DateTime?
+
+  sessions            UserSession[]
+  applicantProfile    ApplicantProfile?
+  verifierProfile     VerifierProfile?
+  membership          OrganisationMember?
+  notifications       Notification[]
+  pushSubscriptions   PushSubscription[]
+  requestsAsApplicant VerificationRequest[] @relation("ApplicantRequests")
+  requestsCreated     VerificationRequest[] @relation("CreatedRequests")
+  passwordResets      PasswordResetToken[]
+  dataSubjectRequests DataSubjectRequest[]
+
+  @@unique([accountType, email])
+  @@unique([accountType, phone])
+  @@index([status])
+}
+
+model UserSession {
+  id             String    @id @default(uuid()) @db.Uuid
+  userId         String    @db.Uuid
+  user           User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash      String    @unique
+  audience       String
+  scopeRequestId String?   @db.Uuid
+  mfaVerified    Boolean   @default(false)
+  ipAddress      String?
+  userAgent      String?
+  createdAt      DateTime  @default(now())
+  lastSeenAt     DateTime  @default(now())
+  expiresAt      DateTime
+  revokedAt      DateTime?
+  revokedReason  String?
+
+  @@index([userId, revokedAt])
+}
+
+model OtpChallenge {
+  id          String    @id @default(uuid()) @db.Uuid
+  destination String
+  purpose     String
+  codeHash    String
+  attempts    Int       @default(0)
+  expiresAt   DateTime
+  consumedAt  DateTime?
+  ipAddress   String?
+  createdAt   DateTime  @default(now())
+
+  @@index([destination, purpose, createdAt])
+}
+
+model PasswordResetToken {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+}
+
+model ApplicantProfile {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String   @unique @db.Uuid
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  dateOfBirth String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model VerifierProfile {
+  id                     String         @id @default(uuid()) @db.Uuid
+  userId                 String         @unique @db.Uuid
+  user                   User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  status                 VerifierStatus @default(INCOMPLETE)
+  dateOfBirth            String
+  residentialAddress     String
+  homeLat                Float?
+  homeLng                Float?
+  photoFileId            String?        @db.Uuid
+  idType                 String?
+  idNumberEnc            String?
+  idNumberLast4          String?
+  payoutBankCode         String?
+  payoutBankName         String?
+  payoutAccountEnc       String?
+  payoutAccountLast4     String?
+  payoutAccountName      String?
+  payoutRecipientCode    String?
+  reliabilityScore       Decimal        @default(80) @db.Decimal(5, 2)
+  completedCount         Int            @default(0)
+  onTimeCount            Int            @default(0)
+  auditPassCount         Int            @default(0)
+  auditFailCount         Int            @default(0)
+  evidenceQualityAvg     Decimal?       @db.Decimal(5, 2)
+  approvedAt             DateTime?
+  approvedById           String?        @db.Uuid
+  decisionReason         String?
+  isProfessional         Boolean        @default(false)
+  createdAt              DateTime       @default(now())
+  updatedAt              DateTime       @updatedAt
+
+  identityChecks    VerifierIdentityCheck[]
+  availability      VerifierAvailability?
+  locations         VerifierLocation[]
+  assignments       VerificationAssignment[]
+  invitations       AssignmentInvitation[]
+  wallet            Wallet?
+  payouts           Payout[]
+  evidence          VerificationEvidence[]
+  fieldVisits       FieldVisit[]
+  fraudSignals      FraudSignal[]
+
+  @@index([status])
+}
+
+model VerifierIdentityCheck {
+  id                String              @id @default(uuid()) @db.Uuid
+  verifierId        String              @db.Uuid
+  verifier          VerifierProfile     @relation(fields: [verifierId], references: [id], onDelete: Cascade)
+  provider          String
+  idType            String
+  status            IdentityCheckStatus @default(PENDING)
+  providerReference String?
+  resultSummary     Json?
+  idDocumentFileId  String?             @db.Uuid
+  selfieFileId      String?             @db.Uuid
+  reviewedById      String?             @db.Uuid
+  reviewNote        String?
+  createdAt         DateTime            @default(now())
+  completedAt       DateTime?
+
+  @@index([verifierId, createdAt])
+}
+
+// ─── Organisations ───────────────────────────────────────────────────────────
+model Organisation {
+  id                       String       @id @default(uuid()) @db.Uuid
+  legalName                String
+  tradingName              String?
+  registrationNumber       String
+  businessType             BusinessType
+  countryCode              String       @default("NG")
+  contactEmail             String
+  contactPhone             String
+  address                  String
+  website                  String?
+  expectedMonthlyVolume    Int          @default(0)
+  verificationRequirements String?
+  status                   OrgStatus    @default(PENDING_REVIEW)
+  postpaidEnabled          Boolean      @default(false)
+  creditLimit              Decimal      @default(0) @db.Decimal(14, 2)
+  approvedAt               DateTime?
+  approvedById             String?      @db.Uuid
+  decisionReason           String?
+  createdAt                DateTime     @default(now())
+  updatedAt                DateTime     @updatedAt
+  deletedAt                DateTime?
+
+  members         OrganisationMember[]
+  requests        VerificationRequest[]
+  policies        VerificationPolicy[]
+  wallet          Wallet?
+  apiCredentials  ApiCredential[]
+  webhooks        WebhookSubscription[]
+  bulkUploads     BulkUpload[]
+  invoices        Invoice[]
+  payments        Payment[]
+
+  @@unique([countryCode, registrationNumber])
+  @@index([status])
+}
+
+model OrganisationRole {
+  key         OrgRole  @id
+  name        String
+  description String
+  permissions String[]
+}
+
+model OrganisationMember {
+  id             String        @id @default(uuid()) @db.Uuid
+  organisationId String        @db.Uuid
+  organisation   Organisation  @relation(fields: [organisationId], references: [id], onDelete: Cascade)
+  userId         String        @unique @db.Uuid
+  user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  role           OrgRole
+  jobTitle       String?
+  department     String?
+  status         AccountStatus @default(ACTIVE)
+  invitedById    String?       @db.Uuid
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+
+  @@index([organisationId, role])
+}
+
+// ─── Geography ───────────────────────────────────────────────────────────────
+model Country {
+  code        String   @id
+  name        String
+  currency    String
+  timezone    String
+  phonePrefix String
+  active      Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  areas    AdministrativeArea[]
+  pricing  PricingPlan[]
+}
+
+model AdministrativeArea {
+  id                String               @id @default(uuid()) @db.Uuid
+  countryCode       String
+  country           Country              @relation(fields: [countryCode], references: [code])
+  type              AreaType
+  name              String
+  parentId          String?              @db.Uuid
+  parent            AdministrativeArea?  @relation("AreaHierarchy", fields: [parentId], references: [id])
+  children          AdministrativeArea[] @relation("AreaHierarchy")
+  serviceActive     Boolean              @default(true)
+  maxWalkingMinutes Int?
+  centerLat         Float?
+  centerLng         Float?
+  createdAt         DateTime             @default(now())
+  updatedAt         DateTime             @updatedAt
+
+  @@unique([countryCode, type, name, parentId])
+}
+
+model Address {
+  id             String   @id @default(uuid()) @db.Uuid
+  ownerUserId    String?  @db.Uuid
+  organisationId String?  @db.Uuid
+  countryCode    String   @default("NG")
+  state          String
+  lga            String?
+  city           String
+  district       String?
+  street         String
+  houseNumber    String?
+  estate         String?
+  landmark       String?
+  directions     String?
+  lat            Float
+  lng            Float
+  location       Unsupported("geography(Point,4326)")? @default(dbgenerated())
+  locationSource String   @default("MAP_PIN")
+  gpsAccuracyM   Float?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  requests VerificationRequest[]
+
+  @@index([state, city])
+  @@index([location], map: "Address_location_gist", type: Gist)
+}
+
+// ─── Verification requests & policies ────────────────────────────────────────
+model VerificationPolicy {
+  id             String            @id @default(uuid()) @db.Uuid
+  organisationId String?           @db.Uuid
+  organisation   Organisation?     @relation(fields: [organisationId], references: [id])
+  name           String
+  description    String?
+  level          VerificationLevel @default(STANDARD)
+  currentVersion Int               @default(1)
+  isDefault      Boolean           @default(false)
+  archived       Boolean           @default(false)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  versions VerificationPolicyVersion[]
+
+  @@index([organisationId])
+}
+
+model VerificationPolicyVersion {
+  id          String             @id @default(uuid()) @db.Uuid
+  policyId    String             @db.Uuid
+  policy      VerificationPolicy @relation(fields: [policyId], references: [id], onDelete: Cascade)
+  version     Int
+  rules       Json
+  changeNote  String?
+  createdById String?            @db.Uuid
+  createdAt   DateTime           @default(now())
+
+  requests VerificationRequest[]
+
+  @@unique([policyId, version])
+}
+
+model VerificationRequest {
+  id                String              @id @default(uuid()) @db.Uuid
+  reference         String              @unique
+  organisationId    String?             @db.Uuid
+  organisation      Organisation?       @relation(fields: [organisationId], references: [id])
+  applicantUserId   String?             @db.Uuid
+  applicant         User?               @relation("ApplicantRequests", fields: [applicantUserId], references: [id])
+  createdByUserId   String?             @db.Uuid
+  createdBy         User?               @relation("CreatedRequests", fields: [createdByUserId], references: [id])
+  apiCredentialId   String?             @db.Uuid
+  bulkUploadId      String?             @db.Uuid
+  source            RequestSource
+  status            RequestStatus       @default(CREATED)
+  level             VerificationLevel   @default(STANDARD)
+  purpose           VerificationPurpose @default(BANK_ACCOUNT)
+  priority          Priority            @default(NORMAL)
+  customerReference String?
+  department        String?
+  applicantName     String
+  applicantPhone    String
+  applicantEmail    String?
+  applicantDob      String?
+  addressId         String?             @db.Uuid
+  address           Address?            @relation(fields: [addressId], references: [id])
+  lockedFields      String[]            @default([])
+  policyVersionId   String?             @db.Uuid
+  policyVersion     VerificationPolicyVersion? @relation(fields: [policyVersionId], references: [id])
+  policySnapshot    Json
+  instructions      String?
+  deadline          DateTime?
+  price             Decimal             @db.Decimal(14, 2)
+  verifierReward    Decimal             @db.Decimal(14, 2)
+  currency          String              @default("NGN")
+  chargedAt         DateTime?
+  paidAt            DateTime?
+  visitWindow       Json?
+  consent           Json?
+  consentAt         DateTime?
+  submittedAt       DateTime?
+  dispatchTier      Int                 @default(0)
+  dispatchStartedAt DateTime?
+  lastDispatchAt    DateTime?
+  coverageFallback  String?
+  outcome           FinalOutcome?
+  outcomeAt         DateTime?
+  riskScore         Int                 @default(0)
+  riskFlagged       Boolean             @default(false)
+  cancelledReason   String?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+  deletedAt         DateTime?
+
+  statusEvents     RequestStatusEvent[]
+  invitation       ApplicantInvitation?
+  documents        ApplicantDocument[]
+  assignments      VerificationAssignment[]
+  offers           AssignmentInvitation[]
+  fieldVisits      FieldVisit[]
+  evidence         VerificationEvidence[]
+  findings         VerificationFinding[]
+  reports          VerificationReport[]
+  disputes         VerificationDispute[]
+  manualReviews    ManualReview[]
+  fraudSignals     FraudSignal[]
+  payments         Payment[]
+
+  @@index([organisationId, status, createdAt])
+  @@index([organisationId, customerReference])
+  @@index([applicantUserId, createdAt])
+  @@index([status, updatedAt])
+}
+
+model RequestStatusEvent {
+  id        String              @id @default(uuid()) @db.Uuid
+  requestId String              @db.Uuid
+  request   VerificationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  fromStatus RequestStatus?
+  toStatus  RequestStatus
+  actorType String
+  actorId   String?
+  note      String?
+  createdAt DateTime            @default(now())
+
+  @@index([requestId, createdAt])
+}
+
+model ApplicantInvitation {
+  id          String                    @id @default(uuid()) @db.Uuid
+  requestId   String                    @unique @db.Uuid
+  request     VerificationRequest       @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  tokenHash   String                    @unique
+  phone       String
+  email       String?
+  status      ApplicantInvitationStatus @default(PENDING)
+  expiresAt   DateTime
+  sendCount   Int                       @default(0)
+  lastSentAt  DateTime?
+  openedAt    DateTime?
+  completedAt DateTime?
+  createdAt   DateTime                  @default(now())
+  updatedAt   DateTime                  @updatedAt
+}
+
+model StoredFile {
+  id             String         @id @default(uuid()) @db.Uuid
+  storageKey     String         @unique
+  purpose        String
+  mimeType       String
+  sizeBytes      Int
+  sha256         String
+  originalName   String?
+  ownerUserId    String?        @db.Uuid
+  organisationId String?        @db.Uuid
+  scanStatus     FileScanStatus @default(NOT_SCANNED)
+  createdAt      DateTime       @default(now())
+  deletedAt      DateTime?
+
+  @@index([sha256])
+}
+
+model ApplicantDocument {
+  id           String              @id @default(uuid()) @db.Uuid
+  requestId    String              @db.Uuid
+  request      VerificationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  uploadedById String              @db.Uuid
+  documentType DocumentType
+  fileId       String              @db.Uuid
+  createdAt    DateTime            @default(now())
+}
+
+// ─── Assignment engine ───────────────────────────────────────────────────────
+model VerifierAvailability {
+  id              String          @id @default(uuid()) @db.Uuid
+  verifierId      String          @unique @db.Uuid
+  verifier        VerifierProfile @relation(fields: [verifierId], references: [id], onDelete: Cascade)
+  isAvailable     Boolean         @default(false)
+  sessionId       String?         @db.Uuid
+  startedAt       DateTime?
+  lastHeartbeatAt DateTime?
+  lastLat         Float?
+  lastLng         Float?
+  lastAccuracyM   Float?
+  location        Unsupported("geography(Point,4326)")? @default(dbgenerated())
+  endedReason     String?
+  updatedAt       DateTime        @updatedAt
+
+  @@index([location], map: "VerifierAvailability_location_gist", type: Gist)
+}
+
+model VerifierLocation {
+  id                String          @id @default(uuid()) @db.Uuid
+  verifierId        String          @db.Uuid
+  verifier          VerifierProfile @relation(fields: [verifierId], references: [id], onDelete: Cascade)
+  lat               Float
+  lng               Float
+  location          Unsupported("geography(Point,4326)")? @default(dbgenerated())
+  accuracyM         Float
+  recordedAt        DateTime
+  receivedAt        DateTime        @default(now())
+  availabilityState Boolean
+  sessionId         String?         @db.Uuid
+
+  @@index([verifierId, receivedAt])
+  @@index([location], map: "VerifierLocation_location_gist", type: Gist)
+}
+
+model AssignmentInvitation {
+  id             String              @id @default(uuid()) @db.Uuid
+  requestId      String              @db.Uuid
+  request        VerificationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  verifierId     String              @db.Uuid
+  verifier       VerifierProfile     @relation(fields: [verifierId], references: [id], onDelete: Cascade)
+  tier           Int
+  status         InvitationStatus    @default(SENT)
+  distanceM      Int
+  walkingMinutes Decimal             @db.Decimal(6, 1)
+  routingSource  String
+  reward         Decimal             @db.Decimal(14, 2)
+  expiresAt      DateTime
+  respondedAt    DateTime?
+  declineReason  String?
+  createdAt      DateTime            @default(now())
+
+  @@unique([requestId, verifierId])
+  @@index([verifierId, status, expiresAt])
+}
+
+model VerificationAssignment {
+  id             String              @id @default(uuid()) @db.Uuid
+  requestId      String              @db.Uuid
+  request        VerificationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  verifierId     String              @db.Uuid
+  verifier       VerifierProfile     @relation(fields: [verifierId], references: [id])
+  status         AssignmentStatus    @default(ACCEPTED)
+  invitationId   String?             @unique @db.Uuid
+  assignedById   String?             @db.Uuid
+  idempotencyKey String?             @unique
+  reward         Decimal             @db.Decimal(14, 2)
+  distanceM      Int?
+  walkingMinutes Decimal?            @db.Decimal(6, 1)
+  routingSource  String?
+  deadline       DateTime?
+  acceptedAt     DateTime            @default(now())
+  enRouteAt      DateTime?
+  arrivedAt      DateTime?
+  startedAt      DateTime?
+  submittedAt    DateTime?
+  releasedAt     DateTime?
+  releaseReason  String?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  fieldVisit FieldVisit?
+
+  @@index([verifierId, status])
+  @@index([requestId])
+}
+
+// ─── Field visits & evidence ─────────────────────────────────────────────────
+model FieldVisit {
+  id                    String                 @id @default(uuid()) @db.Uuid
+  assignmentId          String                 @unique @db.Uuid
+  assignment            VerificationAssignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  requestId             String                 @db.Uuid
+  request               VerificationRequest    @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  verifierId            String                 @db.Uuid
+  verifier              VerifierProfile        @relation(fields: [verifierId], references: [id])
+  arrivalLat            Float?
+  arrivalLng            Float?
+  arrivalAccuracyM      Float?
+  arrivalAt             DateTime?
+  arrivalClientAt       DateTime?
+  distanceFromTargetM   Int?
+  thresholdM            Int?
+  withinThreshold       Boolean?
+  arrivalException      String?
+  exceptionNote         String?
+  integritySignals      Json?
+  checklist             Json?
+  draft                 Json?
+  draftUpdatedAt        DateTime?
+  confirmationCodeHash  String?
+  confirmationExpiresAt DateTime?
+  confirmationAttempts  Int                    @default(0)
+  applicantConfirmedAt  DateTime?
+  confirmationMethod    String?
+  incidents             Json                   @default("[]")
+  submissionKey         String?                @unique
+  submittedAt           DateTime?
+  createdAt             DateTime               @default(now())
+  updatedAt             DateTime               @updatedAt
+
+  evidence VerificationEvidence[]
+
+  @@index([requestId])
+}
+
+model VerificationEvidence {
+  id                  String              @id @default(uuid()) @db.Uuid
+  requestId           String              @db.Uuid
+  request             VerificationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  visitId             String              @db.Uuid
+  visit               FieldVisit          @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  verifierId          String              @db.Uuid
+  verifier            VerifierProfile     @relation(fields: [verifierId], references: [id])
+  category            EvidenceCategory
+  fileId              String              @db.Uuid
+  serverSha256        String
+  originalSha256      String?
+  perceptualHash      String?
+  width               Int?
+  height              Int?
+  compressed          Boolean             @default(false)
+  lat                 Float
+  lng                 Float
+  accuracyM           Float
+  capturedAt          DateTime
+  receivedAt          DateTime            @default(now())
+  deviceId            String
+  captureSource       String
+  distanceFromTargetM Int?
+  duplicateOfId       String?             @db.Uuid
+  createdAt           DateTime            @default(now())
+
+  @@index([requestId])
+  @@index([serverSha256])
+  @@index([perceptualHash])
+}
+
+// ─── Verification engine outputs ─────────────────────────────────────────────
+model VerificationFinding {
+  id           String              @id @default(uuid()) @db.Uuid
+  requestId    String              @db.Uuid
+  request      VerificationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  key          FindingKey
+  value        FindingValue
+  source       String
+  basis        Json
+  rulesVersion String
+  supersededAt DateTime?
+  createdById  String?             @db.Uuid
+  createdAt    DateTime            @default(now())
+
+  @@index([requestId, key])
+}
+
+model VerificationReport {
+  id               String              @id @default(uuid()) @db.Uuid
+  requestId        String              @db.Uuid
+  request          VerificationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  version          Int
+  reference        String              @unique
+  outcome          FinalOutcome
+  findingsSnapshot Json
+  rulesVersion     String
+  summary          String
+  aiAssisted       Boolean             @default(false)
+  contentHash      String
+  signature        String
+  fileId           String?             @db.Uuid
+  issuedAt         DateTime            @default(now())
+  validUntil       DateTime
+  revokedAt        DateTime?
+  revokedReason    String?
+
+  disputes VerificationDispute[]
+
+  @@unique([requestId, version])
+}
+
+model VerificationDispute {
+  id             String              @id @default(uuid()) @db.Uuid
+  requestId      String              @db.Uuid
+  request        VerificationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  reportId       String?             @db.Uuid
+  report         VerificationReport? @relation(fields: [reportId], references: [id])
+  raisedByUserId String              @db.Uuid
+  raisedByType   String
+  reason         String
+  details        String
+  status         DisputeStatus       @default(OPEN)
+  resolutionNote String?
+  resolvedById   String?             @db.Uuid
+  resolvedAt     DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([status])
+}
+
+model ManualReview {
+  id           String              @id @default(uuid()) @db.Uuid
+  requestId    String              @db.Uuid
+  request      VerificationRequest @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  status       ReviewStatus        @default(OPEN)
+  trigger      String
+  reasons      Json
+  assignedToId String?             @db.Uuid
+  notes        Json                @default("[]")
+  outcome      FinalOutcome?
+  resolvedById String?             @db.Uuid
+  resolvedAt   DateTime?
+  createdAt    DateTime            @default(now())
+  updatedAt    DateTime            @updatedAt
+
+  @@index([status, createdAt])
+}
+
+model FraudSignal {
+  id           String               @id @default(uuid()) @db.Uuid
+  requestId    String?              @db.Uuid
+  request      VerificationRequest? @relation(fields: [requestId], references: [id], onDelete: Cascade)
+  verifierId   String?              @db.Uuid
+  verifier     VerifierProfile?     @relation(fields: [verifierId], references: [id])
+  evidenceId   String?              @db.Uuid
+  rule         String
+  severity     FraudSeverity
+  score        Int
+  explanation  String
+  data         Json?
+  source       String               @default("RULE")
+  status       FraudSignalStatus    @default(OPEN)
+  resolvedById String?              @db.Uuid
+  resolvedNote String?
+  resolvedAt   DateTime?
+  createdAt    DateTime             @default(now())
+
+  @@index([status, severity])
+  @@index([requestId])
+}
+
+model AuditEvent {
+  id             String   @id @default(uuid()) @db.Uuid
+  actorUserId    String?  @db.Uuid
+  actorType      String
+  actorLabel     String?
+  action         String
+  entityType     String
+  entityId       String?
+  organisationId String?  @db.Uuid
+  ipAddress      String?
+  userAgent      String?
+  metadata       Json?
+  createdAt      DateTime @default(now())
+
+  @@index([entityType, entityId])
+  @@index([organisationId, createdAt])
+  @@index([action, createdAt])
+  @@index([actorUserId, createdAt])
+}
+
+// ─── Money ───────────────────────────────────────────────────────────────────
+model Payment {
+  id                String              @id @default(uuid()) @db.Uuid
+  reference         String              @unique
+  provider          String
+  purpose           PaymentPurpose
+  status            PaymentStatus       @default(INITIATED)
+  amount            Decimal             @db.Decimal(14, 2)
+  currency          String              @default("NGN")
+  userId            String?             @db.Uuid
+  organisationId    String?             @db.Uuid
+  organisation      Organisation?       @relation(fields: [organisationId], references: [id])
+  requestId         String?             @db.Uuid
+  request           VerificationRequest? @relation(fields: [requestId], references: [id])
+  authorizationUrl  String?
+  providerReference String?
+  channel           String?
+  paidAt            DateTime?
+  failureReason     String?
+  verification      Json?
+  refundedAt        DateTime?
+  refundReason      String?
+  reconciledAt      DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([status, createdAt])
+}
+
+model PaymentWebhookEvent {
+  id          String    @id @default(uuid()) @db.Uuid
+  provider    String
+  eventKey    String
+  type        String
+  payload     Json
+  signatureOk Boolean
+  processedAt DateTime?
+  error       String?
+  createdAt   DateTime  @default(now())
+
+  @@unique([provider, eventKey])
+}
+
+model Wallet {
+  id               String           @id @default(uuid()) @db.Uuid
+  ownerType        WalletOwnerType
+  verifierId       String?          @unique @db.Uuid
+  verifier         VerifierProfile? @relation(fields: [verifierId], references: [id])
+  organisationId   String?          @unique @db.Uuid
+  organisation     Organisation?    @relation(fields: [organisationId], references: [id])
+  currency         String           @default("NGN")
+  pendingBalance   Decimal          @default(0) @db.Decimal(14, 2)
+  availableBalance Decimal          @default(0) @db.Decimal(14, 2)
+  heldBalance      Decimal          @default(0) @db.Decimal(14, 2)
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  transactions WalletTransaction[]
+  payouts      Payout[]
+}
+
+/// Immutable ledger. Balances on Wallet are only ever changed in the same DB transaction
+/// that appends a WalletTransaction (enforced by the LedgerService).
+model WalletTransaction {
+  id           String          @id @default(uuid()) @db.Uuid
+  walletId     String          @db.Uuid
+  wallet       Wallet          @relation(fields: [walletId], references: [id])
+  direction    LedgerDirection
+  bucket       LedgerBucket
+  category     LedgerCategory
+  amount       Decimal         @db.Decimal(14, 2)
+  balanceAfter Decimal         @db.Decimal(14, 2)
+  reference    String
+  description  String
+  requestId    String?         @db.Uuid
+  paymentId    String?         @db.Uuid
+  payoutId     String?         @db.Uuid
+  createdById  String?         @db.Uuid
+  createdAt    DateTime        @default(now())
+
+  @@unique([walletId, reference, bucket, direction])
+  @@index([walletId, createdAt])
+}
+
+model Payout {
+  id                String          @id @default(uuid()) @db.Uuid
+  reference         String          @unique
+  verifierId        String          @db.Uuid
+  verifier          VerifierProfile @relation(fields: [verifierId], references: [id])
+  walletId          String          @db.Uuid
+  wallet            Wallet          @relation(fields: [walletId], references: [id])
+  amount            Decimal         @db.Decimal(14, 2)
+  currency          String          @default("NGN")
+  status            PayoutStatus    @default(REQUESTED)
+  bankName          String
+  accountLast4      String
+  accountName       String
+  provider          String
+  providerReference String?
+  idempotencyKey    String          @unique
+  approvedById      String?         @db.Uuid
+  approvedAt        DateTime?
+  rejectionReason   String?
+  completedAt       DateTime?
+  failureReason     String?
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+
+  @@index([status, createdAt])
+}
+
+model PricingPlan {
+  id             String            @id @default(uuid()) @db.Uuid
+  countryCode    String
+  country        Country           @relation(fields: [countryCode], references: [code])
+  level          VerificationLevel
+  audience       String
+  price          Decimal           @db.Decimal(14, 2)
+  verifierReward Decimal           @db.Decimal(14, 2)
+  bulkThreshold  Int               @default(0)
+  bulkPrice      Decimal?          @db.Decimal(14, 2)
+  slaHours       Int
+  active         Boolean           @default(true)
+  createdAt      DateTime          @default(now())
+  updatedAt      DateTime          @updatedAt
+
+  @@unique([countryCode, level, audience])
+}
+
+model Invoice {
+  id             String       @id @default(uuid()) @db.Uuid
+  organisationId String       @db.Uuid
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  number         String       @unique
+  periodStart    DateTime
+  periodEnd      DateTime
+  currency       String       @default("NGN")
+  total          Decimal      @db.Decimal(14, 2)
+  lineItems      Json
+  status         String       @default("ISSUED")
+  createdAt      DateTime     @default(now())
+
+  @@unique([organisationId, periodStart])
+}
+
+// ─── Notifications ───────────────────────────────────────────────────────────
+model Notification {
+  id        String    @id @default(uuid()) @db.Uuid
+  userId    String    @db.Uuid
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  type      String
+  title     String
+  body      String
+  data      Json?
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  deliveries NotificationDelivery[]
+
+  @@index([userId, readAt, createdAt])
+}
+
+model NotificationDelivery {
+  id                String              @id @default(uuid()) @db.Uuid
+  notificationId    String?             @db.Uuid
+  notification      Notification?       @relation(fields: [notificationId], references: [id], onDelete: Cascade)
+  userId            String?             @db.Uuid
+  channel           NotificationChannel
+  destination       String
+  template          String
+  payload           Json
+  status            DeliveryStatus      @default(QUEUED)
+  attempts          Int                 @default(0)
+  lastError         String?
+  providerMessageId String?
+  sentAt            DateTime?
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  @@index([status, createdAt])
+}
+
+model NotificationTemplate {
+  id        String              @id @default(uuid()) @db.Uuid
+  key       String
+  channel   NotificationChannel
+  subject   String?
+  body      String
+  updatedAt DateTime            @updatedAt
+
+  @@unique([key, channel])
+}
+
+model PushSubscription {
+  id        String   @id @default(uuid()) @db.Uuid
+  userId    String   @db.Uuid
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  endpoint  String   @unique
+  p256dh    String
+  auth      String
+  createdAt DateTime @default(now())
+}
+
+// ─── Integrations ────────────────────────────────────────────────────────────
+model ApiCredential {
+  id             String       @id @default(uuid()) @db.Uuid
+  organisationId String       @db.Uuid
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  name           String
+  keyPrefix      String       @unique
+  secretHash     String
+  scopes         String[]
+  requestCount   Int          @default(0)
+  lastUsedAt     DateTime?
+  revokedAt      DateTime?
+  rotatedFromId  String?      @db.Uuid
+  createdById    String?      @db.Uuid
+  createdAt      DateTime     @default(now())
+
+  @@index([organisationId])
+}
+
+model ApiRequestLog {
+  id             String   @id @default(uuid()) @db.Uuid
+  credentialId   String   @db.Uuid
+  organisationId String   @db.Uuid
+  method         String
+  path           String
+  statusCode     Int
+  durationMs     Int
+  createdAt      DateTime @default(now())
+
+  @@index([organisationId, createdAt])
+}
+
+model WebhookSubscription {
+  id             String       @id @default(uuid()) @db.Uuid
+  organisationId String       @db.Uuid
+  organisation   Organisation @relation(fields: [organisationId], references: [id])
+  url            String
+  secretEnc      String
+  events         String[]
+  description    String?
+  active         Boolean      @default(true)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  deliveries WebhookDelivery[]
+}
+
+model WebhookDelivery {
+  id             String              @id @default(uuid()) @db.Uuid
+  subscriptionId String              @db.Uuid
+  subscription   WebhookSubscription @relation(fields: [subscriptionId], references: [id], onDelete: Cascade)
+  event          String
+  payload        Json
+  status         DeliveryStatus      @default(QUEUED)
+  attempts       Int                 @default(0)
+  responseStatus Int?
+  responseBody   String?
+  lastError      String?
+  nextAttemptAt  DateTime?
+  deliveredAt    DateTime?
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  @@index([subscriptionId, createdAt])
+  @@index([status, nextAttemptAt])
+}
+
+model BulkUpload {
+  id             String           @id @default(uuid()) @db.Uuid
+  organisationId String           @db.Uuid
+  organisation   Organisation     @relation(fields: [organisationId], references: [id])
+  uploadedById   String           @db.Uuid
+  fileName       String
+  status         BulkUploadStatus @default(VALIDATED)
+  totalRows      Int
+  validRows      Int
+  invalidRows    Int
+  processedRows  Int              @default(0)
+  failedRows     Int              @default(0)
+  rows           Json
+  errors         Json
+  options        Json?
+  createdAt      DateTime         @default(now())
+  completedAt    DateTime?
+}
+
+// ─── AI ──────────────────────────────────────────────────────────────────────
+model AiAnalysis {
+  id            String           @id @default(uuid()) @db.Uuid
+  feature       AiFeature
+  subjectType   String
+  subjectId     String
+  requestId     String?          @db.Uuid
+  provider      String
+  model         String
+  promptVersion String
+  status        AiAnalysisStatus
+  findings      Json?
+  confidence    Float?
+  explanation   String?
+  nextAction    String?
+  error         String?
+  latencyMs     Int?
+  createdAt     DateTime         @default(now())
+
+  @@index([subjectType, subjectId])
+  @@index([requestId])
+}
+
+model AiUsageRecord {
+  id             String    @id @default(uuid()) @db.Uuid
+  feature        AiFeature
+  provider       String
+  model          String
+  inputTokens    Int       @default(0)
+  outputTokens   Int       @default(0)
+  images         Int       @default(0)
+  costUsd        Decimal   @default(0) @db.Decimal(12, 6)
+  organisationId String?   @db.Uuid
+  succeeded      Boolean
+  cached         Boolean   @default(false)
+  createdAt      DateTime  @default(now())
+
+  @@index([createdAt])
+}
+
+// ─── Platform configuration & privacy ────────────────────────────────────────
+model PlatformSetting {
+  key         String   @id
+  value       Json
+  updatedById String?  @db.Uuid
+  updatedAt   DateTime @updatedAt
+}
+
+model ConsentRecord {
+  id          String   @id @default(uuid()) @db.Uuid
+  userId      String?  @db.Uuid
+  requestId   String?  @db.Uuid
+  kind        String
+  granted     Boolean
+  textVersion String
+  ipAddress   String?
+  createdAt   DateTime @default(now())
+
+  @@index([requestId])
+}
+
+model DataSubjectRequest {
+  id          String    @id @default(uuid()) @db.Uuid
+  userId      String    @db.Uuid
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  kind        String
+  details     String?
+  status      String    @default("OPEN")
+  resolvedAt  DateTime?
+  resolvedById String?  @db.Uuid
+  createdAt   DateTime  @default(now())
+}
