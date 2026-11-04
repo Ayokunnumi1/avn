@@ -1,0 +1,26 @@
+{
+  "name": "@avn/worker",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "tsx watch --clear-screen=false src/index.ts",
+    "start": "node dist/index.js",
+    "build": "tsup",
+    "typecheck": "tsc -p tsconfig.json",
+    "lint": "eslint src"
+  },
+  "dependencies": {
+    "@avn/api": "workspace:*",
+    "@avn/config": "workspace:*",
+    "@avn/logger": "workspace:*",
+    "@prisma/client": "6.19.3",
+    "bullmq": "^5.63.0",
+    "ioredis": "^5.8.2",
+    "pdfkit": "^0.17.2",
+    "sharp": "^0.34.5"
+  },
+  "devDependencies": {
+    "tsup": "^8.5.0"
+  }
+}

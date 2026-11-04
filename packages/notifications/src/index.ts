@@ -162,5 +162,7 @@ export const DEFAULT_TEMPLATES: Record<string, { title: string; body: string; sm
   'payout.update': { title: 'Payout update', body: 'Your payout {{reference}} is now {{status}}.' },
   'org.status': { title: 'Organisation update', body: 'Your organisation account status is now {{status}}.' },
   'dispute.update': { title: 'Dispute update', body: 'Your dispute on {{reference}} has been updated.' },
+  'auth.password_reset': { title: 'Reset your AVN password', body: 'Use this link within 30 minutes to reset your password: {{link}}', emailSubject: 'Reset your AVN password' },
+  'org.member_invite': { title: 'You have been invited to AVN', body: 'Your organisation added you to AVN. Set your password here (valid 72 hours): {{link}}', emailSubject: 'Your AVN account invitation' },
   'review.required': { title: 'Review required', body: 'Verification {{reference}} needs manual review.' },
 };

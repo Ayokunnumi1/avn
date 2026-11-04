@@ -12,3 +12,4 @@ apps/*/storage-data/
 *.log
 .DS_Store
 next-env.d.ts
+.test-storage/
