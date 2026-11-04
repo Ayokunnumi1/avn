@@ -65,7 +65,7 @@ export function RequestSummary({ r, actions }: { r: RequestDetail; actions?: Rea
           <h1 style={{ marginBottom: 4 }}>{r.reference}</h1>
           <div className="row small">
             <StatusBadge status={r.status} />
-            {r.outcomeLabel ? <Badge tone={r.outcome === 'VERIFIED' ? 'success' : 'warning'}>{r.outcomeLabel}</Badge> : null}
+            {r.outcomeLabel && r.outcomeLabel !== r.statusLabel ? <Badge tone={r.outcome === 'VERIFIED' ? 'success' : 'warning'}>{r.outcomeLabel}</Badge> : null}
             {r.riskFlagged ? <Badge tone="danger">Risk score {r.riskScore}</Badge> : null}
             <span className="muted">
               {humanize(r.source)} · {r.level} · {humanize(r.purpose)}

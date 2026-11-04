@@ -30,7 +30,7 @@ import {
 } from '@avn/ui';
 import { api } from '@/lib/api';
 import { CameraCapture, type Capture } from '@/components/camera';
-import { currentFix, type Fix } from '@/components/duty';
+import { currentFix, useDuty, type Fix } from '@/components/duty';
 import { enqueue, flush, list, type QueuedEvidence } from '@/lib/upload-queue';
 
 const MapView = dynamic(() => import('@avn/ui/map').then((m) => m.MapView), { ssr: false, loading: () => <div className="map skeleton" /> });
@@ -95,6 +95,7 @@ export default function FieldVisit() {
   const router = useRouter();
   const toast = useToast();
   const online = useOnline();
+  const duty = useDuty();
   const q = useApi<Assignment>(api, `/assignments/${id}`);
   const a = q.data;
   const [fix, setFix] = useState<Fix | null>(null);
@@ -161,7 +162,9 @@ export default function FieldVisit() {
     await q.reload();
   });
   const arrive = useAction(async () => {
-    const f: Fix = fix && Date.now() - fix.at < 60_000 ? fix : await currentFix();
+    // Prefer the on-duty watcher's live fix if it is fresh; otherwise request a new one.
+    const live = duty.fix && Date.now() - duty.fix.at < 20_000 ? duty.fix : null;
+    const f: Fix = live ?? (fix && Date.now() - fix.at < 20_000 ? fix : await currentFix());
     setFix(f);
     const r = await api.post<{ distanceM: number; withinThreshold: boolean; status: string; exception: string }>(`/assignments/${id}/arrive`, { lat: f.lat, lng: f.lng, accuracyM: f.accuracy, capturedAt: new Date(f.at).toISOString(), isMocked: f.mocked, exception, exceptionNote: exceptionNote || undefined });
     toast(r.withinThreshold ? `Arrival recorded ${r.distanceM} m from the pin` : `Recorded ${r.distanceM} m from the pin — this visit will be reviewed`);

@@ -30,15 +30,33 @@ interface DutyState {
 const Ctx = createContext<DutyState | null>(null);
 const HEARTBEAT_MS = 30_000;
 
-export function currentFix(timeoutMs = 15000): Promise<Fix> {
+function readPosition(opts: PositionOptions): Promise<Fix> {
   return new Promise((resolve, reject) => {
-    if (!navigator.geolocation) return reject(new Error('Location is not available on this device'));
     navigator.geolocation.getCurrentPosition(
       (p) => resolve({ lat: p.coords.latitude, lng: p.coords.longitude, accuracy: p.coords.accuracy, at: p.timestamp, mocked: (p as unknown as { mocked?: boolean }).mocked }),
-      (e) => reject(new Error(e.code === 1 ? 'Location permission denied. Enable location for this app to go on duty.' : 'Could not get a GPS fix. Move to open sky and retry.')),
-      { enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 0 },
+      (e) => reject(e),
+      opts,
     );
   });
+}
+
+/**
+ * Gets a GPS fix. High accuracy first; if that times out or is unavailable (indoors, weak
+ * signal) fall back to a lower-accuracy / recently cached reading. The reported accuracy is
+ * always sent to the server, so a degraded fix is flagged for review rather than trusted.
+ */
+export async function currentFix(timeoutMs = 15000): Promise<Fix> {
+  if (!navigator.geolocation) throw new Error('Location is not available on this device');
+  try {
+    return await readPosition({ enableHighAccuracy: true, timeout: timeoutMs, maximumAge: 0 });
+  } catch (e) {
+    if ((e as GeolocationPositionError).code === 1) throw new Error('Location permission denied. Enable location for this app to go on duty.');
+    try {
+      return await readPosition({ enableHighAccuracy: false, timeout: timeoutMs, maximumAge: 30_000 });
+    } catch {
+      throw new Error('Could not get a GPS fix. Move to open sky and retry.');
+    }
+  }
 }
 
 export function DutyProvider({ children }: { children: ReactNode }) {

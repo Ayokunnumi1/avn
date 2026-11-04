@@ -3,14 +3,16 @@
   "private": true,
   "description": "AVN — Digital Address Verification Network (B2B2C + B2C)",
   "packageManager": "pnpm@10.28.0",
-  "engines": { "node": ">=22" },
+  "engines": {
+    "node": ">=22"
+  },
   "scripts": {
     "dev": "turbo run dev --parallel",
     "dev:api": "pnpm --filter @avn/api dev",
     "dev:worker": "pnpm --filter @avn/worker dev",
     "build": "turbo run build",
     "typecheck": "turbo run typecheck",
-    "lint": "turbo run lint",
+    "lint": "eslint .",
     "test": "turbo run test --concurrency=1",
     "db:generate": "pnpm --filter @avn/database db:generate",
     "db:migrate": "pnpm --filter @avn/database db:migrate",
@@ -21,8 +23,11 @@
   },
   "devDependencies": {
     "@eslint/js": "^9.39.0",
+    "@next/eslint-plugin-next": "15.5.29",
     "@types/node": "^22.19.0",
     "eslint": "^9.39.0",
+    "eslint-plugin-react-hooks": "^5.2.0",
+    "globals": "^16.5.0",
     "prettier": "^3.6.2",
     "tsx": "^4.20.6",
     "turbo": "^2.6.0",
@@ -31,6 +36,13 @@
     "vitest": "^3.2.4"
   },
   "pnpm": {
-    "onlyBuiltDependencies": ["@prisma/client", "@prisma/engines", "prisma", "sharp", "esbuild", "msgpackr-extract"]
+    "onlyBuiltDependencies": [
+      "@prisma/client",
+      "@prisma/engines",
+      "prisma",
+      "sharp",
+      "esbuild",
+      "msgpackr-extract"
+    ]
   }
 }
