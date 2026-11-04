@@ -72,8 +72,8 @@ const EnvSchema = z
 
     AI_PROVIDER: z.enum(['disabled', 'anthropic']).default('disabled'),
     ANTHROPIC_API_KEY: z.string().optional(),
-    AI_MODEL_TEXT: z.string().default('claude-sonnet-5-5'),
-    AI_MODEL_VISION: z.string().default('claude-sonnet-5-5'),
+    AI_MODEL_TEXT: z.string().default('claude-opus-5-5'),
+    AI_MODEL_VISION: z.string().default('claude-opus-5-5'),
     AI_MONTHLY_BUDGET_USD: z.coerce.number().nonnegative().default(50),
     AI_MAX_TOKENS: z.coerce.number().int().positive().default(1024),
     AI_TIMEOUT_MS: z.coerce.number().int().positive().default(20000),
