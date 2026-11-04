@@ -13,3 +13,4 @@ apps/*/storage-data/
 .DS_Store
 next-env.d.ts
 .test-storage/
+e2e/screenshots/

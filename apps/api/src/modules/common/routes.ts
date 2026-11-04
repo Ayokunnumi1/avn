@@ -94,3 +94,24 @@ geoRoutes.post('/parse', { summary: 'AI address intelligence: split free text an
   );
   return { source: ai.data ? 'ai' : 'rules', label: 'Suggestion — please confirm every field', ...(ai.data ?? parseAddressRules(ctx.body.text, states)) };
 });
+
+// ─── Public marketing endpoints ──────────────────────────────────────────────
+export const publicRoutes = routes('/public', 'Public');
+publicRoutes.get('/pricing', { summary: 'Published pricing for a country', public: true, query: z.object({ countryCode: z.string().length(2).default('NG') }) }, async (ctx) => {
+  const plans = await deps().prisma.pricingPlan.findMany({ where: { countryCode: ctx.query.countryCode.toUpperCase(), active: true }, include: { country: true }, orderBy: [{ audience: 'asc' }, { price: 'asc' }] });
+  return plans.map((p) => ({ audience: p.audience, level: p.level, price: p.price.toFixed(2), currency: p.country.currency, slaHours: p.slaHours, bulkThreshold: p.bulkThreshold, bulkPrice: p.bulkPrice?.toFixed(2) ?? null }));
+});
+publicRoutes.post(
+  '/contact',
+  { summary: 'Contact form (forwarded to the operations inbox)', public: true, body: z.object({ name: z.string().trim().min(2).max(120), email: z.string().trim().email().max(254), organisation: z.string().trim().max(160).optional(), topic: z.enum(['INDIVIDUAL', 'INSTITUTION', 'VERIFIER', 'PRIVACY', 'OTHER']), message: z.string().trim().min(10).max(2000) }) },
+  async (ctx) => {
+    await consume('contact', ctx.ip, 5, 3600);
+    const { sendDirect } = await import('../../lib/notify');
+    const { audit } = await import('../../lib/audit');
+    const ops = deps().env.EMAIL_FROM.match(/<([^>]+)>/)?.[1] ?? deps().env.EMAIL_FROM;
+    await deps().prisma.notificationTemplate.upsert({ where: { key_channel: { key: 'public.contact', channel: 'EMAIL' } }, create: { key: 'public.contact', channel: 'EMAIL', subject: 'Contact form: {{topic}}', body: 'From {{name}} <{{email}}> ({{organisation}}):\n\n{{message}}' }, update: {} });
+    await sendDirect('EMAIL', ops, 'public.contact', { ...ctx.body, organisation: ctx.body.organisation ?? '—' });
+    await audit({ ip: ctx.ip, userAgent: ctx.userAgent }, 'public.contact', 'Contact', null, { topic: ctx.body.topic, email: ctx.body.email });
+    return { received: true };
+  },
+);

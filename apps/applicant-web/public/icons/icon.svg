@@ -1,0 +1,5 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="512" height="512" viewBox="0 0 512 512">
+<rect width="512" height="512" rx="112" fill="#0f766e"/>
+<g transform="translate(256 236)"><path d="M0 -118 C 66 -118 112 -70 112 -10 C 112 64 0 150 0 150 C 0 150 -112 64 -112 -10 C -112 -70 -66 -118 0 -118 Z" fill="#fff" opacity=".96"/>
+<path d="M-40 -8 l28 28 l56 -58" fill="none" stroke="#0f766e" stroke-width="26" stroke-linecap="round" stroke-linejoin="round"/></g>
+<text x="256" y="470" text-anchor="middle" font-family="Arial, sans-serif" font-weight="800" font-size="54" fill="#fff" opacity=".85">AVN U</text></svg>

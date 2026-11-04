@@ -1,0 +1,68 @@
+# Local full stack: `docker compose up --build`, then `docker compose run --rm api-migrate` once.
+# Apps: User :3000 · Agent :3001 · Business :3002 · Admin :3003 · API :4000 (/api/docs)
+x-api-env: &api-env
+  APP_ENV: development
+  DATABASE_URL: postgresql://avn:avn@postgres:5432/avn?schema=public
+  REDIS_URL: redis://redis:6379
+  API_PUBLIC_URL: http://localhost:4000
+  CORS_ORIGINS: http://localhost:3000,http://localhost:3001,http://localhost:3002,http://localhost:3003
+  APPLICANT_APP_URL: http://localhost:3000
+  VERIFIER_APP_URL: http://localhost:3001
+  BUSINESS_APP_URL: http://localhost:3002
+  ADMIN_APP_URL: http://localhost:3003
+  SESSION_SECRET: dev-only-session-secret-change-me-0123456789abcdef
+  REPORT_SIGNING_SECRET: dev-only-report-secret-change-me-0123456789abcdef
+  STORAGE_SIGNING_SECRET: dev-only-storage-secret-change-me-0123456789abcdef
+  DATA_ENCRYPTION_KEY: '0000000000000000000000000000000000000000000000000000000000000000'
+  OTP_DEV_ECHO: 'true'
+  STORAGE_LOCAL_DIR: /app/storage-data
+  ROUTING_PROVIDER: valhalla
+  GEOCODER_PROVIDER: nominatim
+
+services:
+  postgres:
+    image: postgis/postgis:16-3.4
+    environment: { POSTGRES_USER: avn, POSTGRES_PASSWORD: avn, POSTGRES_DB: avn }
+    ports: ['5432:5432']
+    volumes: [pgdata:/var/lib/postgresql/data]
+    healthcheck: { test: ['CMD-SHELL', 'pg_isready -U avn'], interval: 5s, retries: 10 }
+  redis:
+    image: redis:7-alpine
+    ports: ['6379:6379']
+  api-migrate:
+    build: { context: ., dockerfile: infrastructure/docker/node.Dockerfile, args: { APP: api } }
+    environment: *api-env
+    depends_on: { postgres: { condition: service_healthy } }
+    command: ['npx', '--yes', 'prisma@6.19.3', 'migrate', 'deploy', '--schema=prisma/schema.prisma']
+    profiles: [setup]
+  api:
+    build: { context: ., dockerfile: infrastructure/docker/node.Dockerfile, args: { APP: api } }
+    environment: *api-env
+    ports: ['4000:4000']
+    volumes: [storage:/app/storage-data]
+    depends_on: { postgres: { condition: service_healthy }, redis: { condition: service_started } }
+  worker:
+    build: { context: ., dockerfile: infrastructure/docker/node.Dockerfile, args: { APP: worker } }
+    environment: *api-env
+    volumes: [storage:/app/storage-data]
+    depends_on: [api]
+  applicant-web:
+    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile, args: { APP: applicant-web, NEXT_PUBLIC_BUSINESS_APP_URL: 'http://localhost:3002', NEXT_PUBLIC_VERIFIER_APP_URL: 'http://localhost:3001' } }
+    environment: { API_INTERNAL_URL: 'http://api:4000' }
+    ports: ['3000:3000']
+  verifier-web:
+    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile, args: { APP: verifier-web } }
+    environment: { API_INTERNAL_URL: 'http://api:4000' }
+    ports: ['3001:3000']
+  business-web:
+    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile, args: { APP: business-web } }
+    environment: { API_INTERNAL_URL: 'http://api:4000' }
+    ports: ['3002:3000']
+  admin-web:
+    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile, args: { APP: admin-web } }
+    environment: { API_INTERNAL_URL: 'http://api:4000' }
+    ports: ['3003:3000']
+
+volumes:
+  pgdata:
+  storage:

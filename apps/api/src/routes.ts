@@ -1,7 +1,7 @@
 import type { routes } from './lib/http';
 import { adminRoutes } from './modules/admin/routes';
 import { applicantRoutes, invitationRoutes } from './modules/applicants/routes';
-import { fileRoutes, geoRoutes, notificationRoutes } from './modules/common/routes';
+import { fileRoutes, geoRoutes, notificationRoutes, publicRoutes } from './modules/common/routes';
 import { assignmentRoutes } from './modules/field/routes';
 import { publicApiRoutes } from './modules/integrations/public';
 import { assistantRoutes } from './modules/organisations/assistant';
@@ -34,5 +34,6 @@ export const allRoutes: RouteGroup[] = [
   notificationRoutes,
   fileRoutes,
   geoRoutes,
+  publicRoutes,
   adminRoutes,
 ];
