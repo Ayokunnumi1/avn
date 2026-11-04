@@ -11,7 +11,7 @@ RUN pnpm install --frozen-lockfile
 RUN pnpm --filter @avn/database db:generate && pnpm --filter @avn/${APP} build
 RUN pnpm --filter @avn/${APP} deploy --prod --legacy /out && cp -r apps/${APP}/dist /out/dist \
  && cp -r packages/database/prisma /out/prisma \
- && cd /out && npx --yes prisma@6.19.3 generate --schema=prisma/schema.prisma
+ && cd /out && npx prisma generate --schema=prisma/schema.prisma
 
 FROM base AS runtime
 ENV NODE_ENV=production
@@ -20,5 +20,6 @@ COPY --from=build /out /app
 RUN useradd --system --uid 10001 avn && mkdir -p /app/storage-data && chown -R avn /app/storage-data
 USER avn
 EXPOSE 4000
-# API: run migrations on release (see infrastructure/deployment/README.md), then start.
-CMD ["node", "dist/index.js"]
+# Migrations run as a pre-deploy step: npx prisma migrate deploy --schema=prisma/schema.prisma
+# SEED_DEMO_DATA=true (API, non-production only) loads the fictional demo data once, on the live volume.
+CMD ["sh", "-c", "if [ \"$SEED_DEMO_DATA\" = \"true\" ] && [ -f dist/seed.js ]; then node dist/seed.js || exit 1; fi; exec node dist/index.js"]

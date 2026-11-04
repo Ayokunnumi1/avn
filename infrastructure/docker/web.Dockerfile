@@ -6,10 +6,13 @@ WORKDIR /repo
 
 FROM base AS build
 ARG APP=applicant-web
+# The /api proxy target is resolved by `next build`, so it must be a build arg.
+ARG API_INTERNAL_URL=http://localhost:4000
+ARG API_PUBLIC_URL=http://localhost:4000
 ARG NEXT_PUBLIC_MARKETING_ENABLED=true
 ARG NEXT_PUBLIC_BUSINESS_APP_URL
 ARG NEXT_PUBLIC_VERIFIER_APP_URL
-ENV NEXT_PUBLIC_MARKETING_ENABLED=$NEXT_PUBLIC_MARKETING_ENABLED NEXT_PUBLIC_BUSINESS_APP_URL=$NEXT_PUBLIC_BUSINESS_APP_URL NEXT_PUBLIC_VERIFIER_APP_URL=$NEXT_PUBLIC_VERIFIER_APP_URL
+ENV API_INTERNAL_URL=$API_INTERNAL_URL API_PUBLIC_URL=$API_PUBLIC_URL NEXT_PUBLIC_MARKETING_ENABLED=$NEXT_PUBLIC_MARKETING_ENABLED NEXT_PUBLIC_BUSINESS_APP_URL=$NEXT_PUBLIC_BUSINESS_APP_URL NEXT_PUBLIC_VERIFIER_APP_URL=$NEXT_PUBLIC_VERIFIER_APP_URL
 COPY . .
 RUN pnpm install --frozen-lockfile && pnpm --filter @avn/${APP} build
 
@@ -23,5 +26,4 @@ COPY --from=build /repo/apps/${APP}/public ./apps/${APP}/public
 RUN useradd --system --uid 10001 avn && echo "apps/${APP}/server.js" > /app/.entry
 USER avn
 EXPOSE 3000
-# API_INTERNAL_URL is read at runtime by the /api rewrite proxy.
 CMD ["sh", "-c", "node $(cat /app/.entry)"]

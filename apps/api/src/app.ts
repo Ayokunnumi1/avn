@@ -19,7 +19,7 @@ export function createApp(): Express {
   const { env, log, prisma, redis } = deps();
   const app = express();
   app.disable('x-powered-by');
-  app.set('trust proxy', env.TRUST_PROXY ? 1 : false);
+  app.set('trust proxy', env.TRUST_PROXY > 0 ? env.TRUST_PROXY : false);
 
   app.use(pinoHttp({ logger: log, genReqId: (req) => (req.headers['x-request-id'] as string) || randomUUID(), autoLogging: { ignore: (req) => req.url === '/health' } }));
   app.use(helmet({ contentSecurityPolicy: false, crossOriginResourcePolicy: { policy: 'same-site' } }));

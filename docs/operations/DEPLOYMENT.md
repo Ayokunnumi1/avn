@@ -1,14 +1,15 @@
 # Deployment
 
-Initial target: **Railway** — see [`infrastructure/deployment/railway.md`](../../infrastructure/deployment/railway.md) for the service map and required environment.
+- **Railway (everything)** — [`infrastructure/deployment/railway.md`](../../infrastructure/deployment/railway.md); per-service config-as-code in `infrastructure/deployment/railway/*.json`.
+- **Vercel (web apps) + Railway (API, Postgres)** — [`infrastructure/deployment/vercel.md`](../../infrastructure/deployment/vercel.md); each web app has a `vercel.json`.
 
-Images: `infrastructure/docker/node.Dockerfile` (`APP=api|worker`) and `infrastructure/docker/web.Dockerfile` (`APP=applicant-web|verifier-web|business-web|admin-web`). Each app is independently deployable; the web apps only need `API_INTERNAL_URL` at runtime.
+Images: `infrastructure/docker/node.Dockerfile` (`APP=api|worker`) and `infrastructure/docker/web.Dockerfile` (`APP=applicant-web|verifier-web|business-web|admin-web`). The web apps' `/api/*` proxy target (`API_INTERNAL_URL`) is compiled in at **build** time. The API image runs the bundled demo seed on start when `SEED_DEMO_DATA=true` (non-production only) and, with `JOBS_MODE=inline`, runs jobs and the maintenance sweep in-process so no worker or Redis is required.
 
 Release checklist
 
 1. CI green (typecheck, lint, tests on PostGIS, builds).
 2. Run migrations: `prisma migrate deploy` (Railway pre-deploy command on the API service).
-3. Deploy API, then worker, then web apps.
+3. Deploy API (and worker if using `JOBS_MODE=queue`), then web apps.
 4. Verify `GET /health` (db ok, redis ready), sign in to each app, check `/api/docs`.
 5. Configure Paystack webhook → `/api/v1/payments/webhooks/paystack`.
 

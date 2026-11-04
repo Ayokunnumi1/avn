@@ -22,5 +22,6 @@ export default tseslint.config(
     plugins: { 'react-hooks': reactHooks, '@next/next': nextPlugin },
     rules: { ...reactHooks.configs.recommended.rules, ...nextPlugin.configs.recommended.rules, '@next/next/no-html-link-for-pages': 'off', '@next/next/no-page-custom-font': 'off' },
   },
-  { files: ['**/scripts/**', '**/test/**', '**/testing/**'], rules: { 'no-console': 'off' } },
+  { files: ['**/scripts/**', '**/test/**', '**/testing/**', 'e2e/**'], rules: { 'no-console': 'off' } },
+  { files: ['**/*.cjs'], rules: { '@typescript-eslint/no-require-imports': 'off' } },
 );

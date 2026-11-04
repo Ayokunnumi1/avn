@@ -6,6 +6,9 @@ export {};
  */
 process.env.JOBS_MODE = 'inline';
 process.env.DISABLE_RATE_LIMITS = 'true';
+// The seed drives the app in-process over plain HTTP; with an https:// public URL the session
+// cookies would be marked Secure and never sent back, so use a local URL for this process only.
+process.env.API_PUBLIC_URL = 'http://localhost';
 
 const { getEnv } = await import('@avn/config');
 const env = getEnv();
