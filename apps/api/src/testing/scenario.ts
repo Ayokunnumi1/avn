@@ -41,6 +41,8 @@ export async function runScenario(o: ScenarioOptions) {
   const token = String(created.body.invitationUrl).split('/invite/')[1]!;
   if (o.stopAfter === 'created') return { requestId, invitationUrl: created.body.invitationUrl as string };
 
+  // Simulation isolation: no verifier is on duty when the applicant submits.
+  await o.prisma.verifierAvailability.updateMany({ data: { isAvailable: false, sessionId: null } });
   const applicant = client(o.app, 'applicant');
   const otp = await applicant.post(`/invitations/${token}/otp`);
   if (otp.status !== 200 || !otp.body.devCode) fail('invitation otp', otp);
@@ -55,6 +57,8 @@ export async function runScenario(o: ScenarioOptions) {
   if (submitted.status !== 200) fail('applicant submit', submitted);
   if (o.stopAfter === 'submitted') return { requestId, applicant };
 
+  // Simulation isolation: nobody else gets this request, and this verifier gets nobody else's.
+  await o.prisma.assignmentInvitation.updateMany({ where: { status: 'SENT', requestId: { not: requestId } }, data: { status: 'WITHDRAWN' } });
   const verifier = client(o.app, 'verifier');
   const login = await verifier.login(o.verifierEmail);
   if (login.status !== 200) fail('verifier login', login);
@@ -65,7 +69,8 @@ export async function runScenario(o: ScenarioOptions) {
   const { dispatchRequest } = await import('../modules/assignments/dispatch');
   await dispatchRequest(requestId);
   const offers = await verifier.get('/verifiers/me/offers');
-  const offer = (offers.body as Array<{ id: string }>).find(Boolean);
+  const own = await o.prisma.assignmentInvitation.findFirst({ where: { requestId, status: 'SENT', verifier: { user: { email: o.verifierEmail } } } });
+  const offer = (offers.body as Array<{ id: string }>).find((x) => x.id === own?.id);
   if (!offer) fail('offer', offers);
   const acc = await verifier.post(`/offers/${offer!.id}/accept`, { idempotencyKey: `seed-accept-${requestId}` });
   if (acc.status !== 200) fail('accept', acc);

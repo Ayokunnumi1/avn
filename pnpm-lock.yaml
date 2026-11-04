@@ -135,6 +135,9 @@ importers:
       '@types/swagger-ui-express':
         specifier: ^4.1.8
         version: 4.1.8
+      dotenv:
+        specifier: ^17.4.2
+        version: 17.4.2
       supertest:
         specifier: ^7.1.4
         version: 7.3.1
