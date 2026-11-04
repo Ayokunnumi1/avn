@@ -126,8 +126,9 @@ export function renderReportPdf(m: ReportModel): Promise<Buffer> {
     if (m.aiAssisted) doc.moveDown(0.3).fontSize(7.5).fillColor(MUTED).text('Wording assisted by AI from the structured findings above; no facts were added. Findings are authoritative.', { width });
 
     if (m.evidence.length) {
-      section('Evidence');
       const thumbW = (width - 24) / 3;
+      if (doc.y + thumbW * 0.75 + 70 > doc.page.height - 60) doc.addPage();
+      section('Evidence');
       let x = 48;
       let rowY = doc.y;
       m.evidence.slice(0, 6).forEach((e, i) => {

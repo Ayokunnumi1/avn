@@ -58,9 +58,11 @@ export function arrivalSignals(i: ArrivalCheckInput): Signal[] {
   const out: Signal[] = [];
   if (i.isMocked) out.push({ rule: 'MOCK_LOCATION', severity: 'HIGH', score: 50, explanation: 'Device reported a mocked/simulated location.' });
   if (i.accuracyM > i.maxAccuracyM) out.push({ rule: 'POOR_GPS_ACCURACY', severity: 'LOW', score: 10, explanation: `Arrival GPS accuracy ±${Math.round(i.accuracyM)} m exceeds ${i.maxAccuracyM} m.` });
-  if (i.lastKnown) {
-    const hours = Math.max((i.arrivalAt.getTime() - i.lastKnown.at.getTime()) / 3600_000, 1 / 3600);
-    const kmh = haversineMetres(i.lastKnown.point, i.arrivalPoint) / 1000 / hours;
+  // Only meaningful for jumps beyond GPS noise; a 60 s floor stops jitter reading as "speed".
+  const jumpM = i.lastKnown ? haversineMetres(i.lastKnown.point, i.arrivalPoint) : 0;
+  if (i.lastKnown && jumpM > 1000) {
+    const hours = Math.max((i.arrivalAt.getTime() - i.lastKnown.at.getTime()) / 3600_000, 60 / 3600);
+    const kmh = jumpM / 1000 / hours;
     if (kmh > 150) out.push({ rule: 'IMPOSSIBLE_TRAVEL', severity: 'HIGH', score: 45, explanation: `Implied travel speed of ${Math.round(kmh)} km/h since the last location heartbeat.`, data: { kmh } });
     else if (kmh > 60) out.push({ rule: 'FAST_TRAVEL', severity: 'LOW', score: 10, explanation: `Implied travel speed of ${Math.round(kmh)} km/h (vehicle travel).`, data: { kmh } });
   }

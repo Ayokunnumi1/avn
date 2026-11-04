@@ -133,6 +133,10 @@ describe('fraud rules', () => {
     expect(s.map((x) => x.rule)).toEqual(['DUPLICATE_IMAGE', 'HASH_MISMATCH']);
     expect(aggregate(s)).toEqual({ score: 100, highSeverity: true });
   });
+  it('ignores GPS jitter between close heartbeats', () => {
+    const s = arrivalSignals({ accuracyM: 5, maxAccuracyM: 50, arrivalPoint: { lat: 6.6, lng: 3.35 }, arrivalAt: now, lastKnown: { point: { lat: 6.6004, lng: 3.35 }, at: new Date(now.getTime() - 1000) } });
+    expect(s).toEqual([]);
+  });
   it('detects impossible travel and mocked locations', () => {
     const s = arrivalSignals({ isMocked: true, accuracyM: 5, maxAccuracyM: 50, arrivalPoint: { lat: 6.6, lng: 3.35 }, arrivalAt: now, lastKnown: { point: { lat: 9.05, lng: 7.49 }, at: new Date(now.getTime() - 10 * 60_000) } });
     expect(s.map((x) => x.rule)).toEqual(['MOCK_LOCATION', 'IMPOSSIBLE_TRAVEL']);

@@ -224,5 +224,6 @@ export async function cancelRequest(tx: Tx, after: After, requestId: string, rea
 
 export function addressLines(a: { houseNumber: string | null; street: string; estate: string | null; district: string | null; city: string; lga: string | null; state: string } | null) {
   if (!a) return [];
-  return [[a.houseNumber, a.street].filter(Boolean).join(' '), a.estate, a.district, a.city, a.lga, a.state].filter((x): x is string => !!x);
+  const parts = [[a.houseNumber, a.street].filter(Boolean).join(' '), a.estate, a.district, a.city, a.lga, a.state].filter((x): x is string => !!x);
+  return parts.filter((p, i) => parts.findIndex((q) => q.toLowerCase() === p.toLowerCase()) === i);
 }

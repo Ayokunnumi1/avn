@@ -2,7 +2,7 @@ import { defineConfig } from 'tsup';
 
 // Bundles workspace packages (@avn/*) into the output; third-party deps stay external.
 export default defineConfig({
-  entry: ['src/index.ts', 'src/scripts/seed.ts'],
+  entry: ['src/index.ts'],
   format: ['esm'],
   platform: 'node',
   target: 'node22',
