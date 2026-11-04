@@ -74,6 +74,9 @@ importers:
       '@avn/storage':
         specifier: workspace:*
         version: link:../../packages/storage
+      '@prisma/client':
+        specifier: 6.19.3
+        version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
       bullmq:
         specifier: ^5.63.0
         version: 5.81.5
@@ -98,6 +101,9 @@ importers:
       multer:
         specifier: ^2.0.2
         version: 2.5.0
+      pdfkit:
+        specifier: ^0.17.2
+        version: 0.17.2
       pino-http:
         specifier: ^10.5.0
         version: 10.5.0
@@ -141,6 +147,37 @@ importers:
       supertest:
         specifier: ^7.1.4
         version: 7.3.1
+      tsup:
+        specifier: ^8.5.0
+        version: 8.5.1(jiti@2.7.0)(postcss@8.5.32)(tsx@4.23.15)(typescript@5.9.3)
+
+  apps/worker:
+    dependencies:
+      '@avn/api':
+        specifier: workspace:*
+        version: link:../api
+      '@avn/config':
+        specifier: workspace:*
+        version: link:../../packages/config
+      '@avn/logger':
+        specifier: workspace:*
+        version: link:../../packages/logger
+      '@prisma/client':
+        specifier: 6.19.3
+        version: 6.19.3(prisma@6.19.3(typescript@5.9.3))(typescript@5.9.3)
+      bullmq:
+        specifier: ^5.63.0
+        version: 5.81.5
+      ioredis:
+        specifier: ^5.8.2
+        version: 5.11.1
+      pdfkit:
+        specifier: ^0.17.2
+        version: 0.17.2
+      sharp:
+        specifier: ^0.34.5
+        version: 0.34.5
+    devDependencies:
       tsup:
         specifier: ^8.5.0
         version: 8.5.1(jiti@2.7.0)(postcss@8.5.32)(tsx@4.23.15)(typescript@5.9.3)

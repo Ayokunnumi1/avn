@@ -86,7 +86,7 @@ export function routes(prefix: string, tag: string) {
           auth: req.auth,
           ip: req.ip ?? '',
           userAgent: String(req.headers['user-agent'] ?? '').slice(0, 300),
-          requestId: String(req.id ?? ''),
+          requestId: String((req as { id?: unknown }).id ?? ''),
           files,
           file: req.file,
         };

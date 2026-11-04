@@ -26,7 +26,7 @@ export const tooMany = (message = 'Too many requests, please slow down') => new 
 
 /** Consistent error envelope for every failure; internal details never leak to clients. */
 export const errorHandler: ErrorRequestHandler = (err, req, res, _next) => {
-  const requestId = String(req.id ?? '');
+  const requestId = String((req as { id?: unknown }).id ?? '');
   const send = (status: number, body: ApiErrorBody['error']) => res.status(status).json({ error: { ...body, requestId } });
 
   if (err instanceof AppError) return send(err.status, { code: err.code, message: err.message, details: err.details });

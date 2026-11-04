@@ -11,4 +11,6 @@ export default defineConfig({
   sourcemap: true,
   noExternal: [/^@avn\//],
   external: ['@prisma/client', 'sharp', 'pdfkit'],
+  // Bundled CommonJS dependencies call require(); provide it in the ESM output.
+  banner: { js: "import { createRequire as __avnCreateRequire } from 'node:module'; const require = __avnCreateRequire(import.meta.url);" },
 });
