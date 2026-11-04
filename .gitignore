@@ -14,3 +14,4 @@ apps/*/storage-data/
 next-env.d.ts
 .test-storage/
 e2e/screenshots/
+dump.rdb
