@@ -65,7 +65,7 @@ node e2e/full-flow.cjs   # browser E2E across all four apps (requires the runnin
 apps/        api · worker · applicant-web · verifier-web · business-web · admin-web
 packages/    config · contracts · database · auth · logger · shared-utils · payments · maps
              storage · notifications · ai · reporting · ui
-infrastructure/  docker (Dockerfiles) · deployment (Railway) · scripts (PWA assets)
+infrastructure/  docker (Dockerfiles) · deployment (Railway config-as-code, Vercel) · scripts (PWA assets)
 docs/        architecture · database · api · security · operations
 e2e/         browser end-to-end flow
 ```

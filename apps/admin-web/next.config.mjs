@@ -24,7 +24,8 @@ const csp = [
 export default {
   reactStrictMode: true,
   poweredByHeader: false,
-  output: 'standalone',
+  // Vercel uses its own output format; Docker/Railway use the standalone server.
+  output: process.env.VERCEL ? undefined : 'standalone',
   outputFileTracingRoot: path.join(dirname, '../../'),
   transpilePackages: ['@avn/ui', '@avn/contracts'],
   eslint: { ignoreDuringBuilds: true },

@@ -47,20 +47,16 @@ services:
     volumes: [storage:/app/storage-data]
     depends_on: [api]
   applicant-web:
-    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile, args: { APP: applicant-web, NEXT_PUBLIC_BUSINESS_APP_URL: 'http://localhost:3002', NEXT_PUBLIC_VERIFIER_APP_URL: 'http://localhost:3001' } }
-    environment: { API_INTERNAL_URL: 'http://api:4000' }
+    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile, args: { APP: applicant-web, API_INTERNAL_URL: 'http://api:4000', NEXT_PUBLIC_BUSINESS_APP_URL: 'http://localhost:3002', NEXT_PUBLIC_VERIFIER_APP_URL: 'http://localhost:3001' } }
     ports: ['3000:3000']
   verifier-web:
-    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile, args: { APP: verifier-web } }
-    environment: { API_INTERNAL_URL: 'http://api:4000' }
+    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile, args: { APP: verifier-web, API_INTERNAL_URL: 'http://api:4000' } }
     ports: ['3001:3000']
   business-web:
-    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile, args: { APP: business-web } }
-    environment: { API_INTERNAL_URL: 'http://api:4000' }
+    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile, args: { APP: business-web, API_INTERNAL_URL: 'http://api:4000' } }
     ports: ['3002:3000']
   admin-web:
-    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile, args: { APP: admin-web } }
-    environment: { API_INTERNAL_URL: 'http://api:4000' }
+    build: { context: ., dockerfile: infrastructure/docker/web.Dockerfile, args: { APP: admin-web, API_INTERNAL_URL: 'http://api:4000' } }
     ports: ['3003:3000']
 
 volumes:

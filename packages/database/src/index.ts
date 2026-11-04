@@ -15,4 +15,5 @@ if (process.env.NODE_ENV !== 'production') globalForPrisma.__avnPrisma = prisma;
 
 export type Tx = Prisma.TransactionClient;
 export type Db = PrismaClient | Tx;
+export { Prisma, PrismaClient } from '@prisma/client';
 export * from '@prisma/client';

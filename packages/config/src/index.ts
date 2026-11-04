@@ -36,7 +36,11 @@ const EnvSchema = z
     API_PORT: z.coerce.number().int().positive().default(4000),
     API_PUBLIC_URL: z.string().url().default('http://localhost:4000'),
     CORS_ORIGINS: csv,
-    TRUST_PROXY: bool,
+    /** Number of reverse-proxy hops in front of the API ("true" = 1). Behind Railway's edge + the Next.js proxy use 2. */
+    TRUST_PROXY: z
+      .string()
+      .optional()
+      .transform((v) => (v === 'true' ? 1 : v && /^\d+$/.test(v) ? Number(v) : 0)),
 
     APPLICANT_APP_URL: z.string().url().default('http://localhost:3000'),
     VERIFIER_APP_URL: z.string().url().default('http://localhost:3001'),
